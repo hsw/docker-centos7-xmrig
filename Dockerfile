@@ -1,5 +1,5 @@
 FROM centos:7
-ENV XMRIG_VERSION v5.5.3
+ENV XMRIG_VERSION v5.6.0
 RUN yum install -y epel-release && yum install -y wget bzip2 git make cmake3 gcc gcc-c++ automake libtool autoconf libstdc++-static
 RUN mkdir -p /usr/src/xmrig && git clone --depth 1 --branch $XMRIG_VERSION https://github.com/xmrig/xmrig.git /usr/src/xmrig
 RUN sed -i 's/DonateLevel = \d+/DonateLevel = 0/g' /usr/src/xmrig/src/donate.h
