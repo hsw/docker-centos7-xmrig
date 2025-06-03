@@ -1,6 +1,9 @@
 FROM centos:7
-ARG XMRIG_VERSION=v6.21.0
-RUN yum install -y epel-release centos-release-scl ca-certificates && yum install -y wget bzip2 git devtoolset-11-toolchain cmake3 automake libtool
+ARG XMRIG_VERSION=v6.22.2
+RUN sed -i -e '/^mirrorlist/d;/^#baseurl=/{s,^#,,;s,/mirror,/vault,;}' /etc/yum.repos.d/CentOS*.repo
+RUN yum install -y epel-release centos-release-scl ca-certificates
+RUN sed -i -e '/^mirrorlist/d;/^#\s*baseurl=/{s,^#\s*,,;s,/mirror,/vault,;}' /etc/yum.repos.d/CentOS-SCLo*.repo
+RUN yum install -y wget bzip2 git devtoolset-11-toolchain cmake3 automake libtool
 RUN mkdir -p /usr/src/xmrig && git clone --depth 1 --branch $XMRIG_VERSION https://github.com/xmrig/xmrig.git /usr/src/xmrig
 RUN sed -i 's/DonateLevel = [0-9]/DonateLevel = 0/g' /usr/src/xmrig/src/donate.h
 RUN cd /usr/src/xmrig/scripts && scl enable devtoolset-11 ./build_deps.sh
