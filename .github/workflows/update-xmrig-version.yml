@@ -18,6 +18,7 @@ jobs:
           set -eo pipefail
           latest=$(curl -s https://api.github.com/repos/xmrig/xmrig/releases/latest | jq -r .tag_name)
           echo "latest=$latest" >> $GITHUB_OUTPUT
+          echo "XMRig latest=$latest" >> $GITHUB_STEP_SUMMARY
 
       - name: Get current version from Dockerfile
         id: get_current
@@ -25,6 +26,7 @@ jobs:
           set -eo pipefail
           current=$(grep -oP 'ARG XMRIG_VERSION=\K[^\s]+' Dockerfile)
           echo "current=$current" >> $GITHUB_OUTPUT
+          echo "XMRig current=$current" >> $GITHUB_STEP_SUMMARY
 
       - name: Update Dockerfile if new version
         id: update
@@ -34,7 +36,8 @@ jobs:
           current="${{ steps.get_current.outputs.current }}"
           if [ "$latest" != "$current" ]; then
             sed -i "s/ARG XMRIG_VERSION=$current/ARG XMRIG_VERSION=$latest/" Dockerfile
-            echo "updated=true" >> $GITHUB_OUTPUT
+            echo "updated=true" >> $GITHUB_OUTPUT\
+            echo "Update version" >> $GITHUB_STEP_SUMMARY
           else
             echo "updated=false" >> $GITHUB_OUTPUT
           fi

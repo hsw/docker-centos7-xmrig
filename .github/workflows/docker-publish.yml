@@ -36,14 +36,14 @@ jobs:
           echo "xmrig_version=$XMRIG_VERSION" >> $GITHUB_OUTPUT
           # Check if tag already exists
           if ! git ls-remote --tags origin | grep -q "refs/tags/$XMRIG_VERSION"; then
-            echo "Creating new tag $XMRIG_VERSION"
+            echo "Creating new tag $XMRIG_VERSION" | tee $GITHUB_STEP_SUMMARY
             git config --global user.name 'GitHub Actions'
             git config --global user.email 'actions@github.com'
             git tag $XMRIG_VERSION
             git push origin $XMRIG_VERSION
             echo "tag_created=true" >> $GITHUB_OUTPUT
           else
-            echo "Tag $XMRIG_VERSION already exists, skipping"
+            echo "Tag $XMRIG_VERSION already exists, skipping" | tee $GITHUB_STEP_SUMMARY
             echo "tag_created=false" >> $GITHUB_OUTPUT
           fi
 
@@ -74,7 +74,6 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{version}},value=${{ steps.xmrig_tag.outputs.xmrig_version }}
             type=raw,value=latest,enable={{is_default_branch}}
-            type=sha
 
       # Build and push Docker image with Buildx
       - name: Build and push Docker image
