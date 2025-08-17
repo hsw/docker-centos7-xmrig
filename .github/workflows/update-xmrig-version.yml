@@ -1,0 +1,63 @@
+name: Update XMRIG Version
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # every day at 2am UTC
+  workflow_dispatch:
+
+jobs:
+  update-xmrig-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get latest xmrig version
+        id: get_version
+        run: |
+          set -eo pipefail
+          latest=$(curl -s https://api.github.com/repos/xmrig/xmrig/releases/latest | jq -r .tag_name)
+          echo "latest=$latest" >> $GITHUB_OUTPUT
+
+      - name: Get current version from Dockerfile
+        id: get_current
+        run: |
+          set -eo pipefail
+          current=$(grep -oP 'ARG XMRIG_VERSION=\K[^\s]+' Dockerfile)
+          echo "current=$current" >> $GITHUB_OUTPUT
+
+      - name: Update Dockerfile if new version
+        id: update
+        run: |
+          set -eo pipefail
+          latest="${{ steps.get_version.outputs.latest }}"
+          current="${{ steps.get_current.outputs.current }}"
+          if [ "$latest" != "$current" ]; then
+            sed -i "s/ARG XMRIG_VERSION=$current/ARG XMRIG_VERSION=$latest/" Dockerfile
+            echo "updated=true" >> $GITHUB_OUTPUT
+          else
+            echo "updated=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Pull Request
+        if: steps.update.outputs.updated == 'true'
+        id: cpr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.PAT_GITHUB }}
+          commit-message: "chore: update XMRIG_VERSION to ${{ steps.get_version.outputs.latest }}"
+          title: "Update XMRIG_VERSION to ${{ steps.get_version.outputs.latest }}"
+          body: "Automated update of XMRIG_VERSION to ${{ steps.get_version.outputs.latest }}."
+          branch: update/xmrig-version-${{ steps.get_version.outputs.latest }}
+          assignees: ${{ github.repository_owner }}
+          delete-branch: true
+          labels: automerge,github-actions
+
+      - name: Enable automerge for PR
+        if: steps.cpr.outputs.pull-request-number
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          pull-request-number: ${{ steps.cpr.outputs.pull-request-number }}
+          merge-method: squash
+          token: ${{ secrets.PAT_GITHUB }}
+
