@@ -1,5 +1,5 @@
 FROM centos:7
-ARG XMRIG_VERSION=v6.22.2
+ARG XMRIG_VERSION=v6.24.0
 RUN sed -i -e '/^mirrorlist/d;/^#baseurl=/{s,^#,,;s,/mirror,/vault,;}' /etc/yum.repos.d/CentOS*.repo
 RUN yum install -y epel-release centos-release-scl ca-certificates
 RUN sed -i -e '/^mirrorlist/d;/^#\s*baseurl=/{s,^#\s*,,;s,/mirror,/vault,;}' /etc/yum.repos.d/CentOS-SCLo*.repo
