@@ -36,7 +36,7 @@ jobs:
           current="${{ steps.get_current.outputs.current }}"
           if [ "$latest" != "$current" ]; then
             sed -i "s/ARG XMRIG_VERSION=$current/ARG XMRIG_VERSION=$latest/" Dockerfile
-            echo "updated=true" >> $GITHUB_OUTPUT\
+            echo "updated=true" >> $GITHUB_OUTPUT
             echo "Update version" >> $GITHUB_STEP_SUMMARY
           else
             echo "updated=false" >> $GITHUB_OUTPUT
