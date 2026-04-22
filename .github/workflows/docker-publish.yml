@@ -115,15 +115,14 @@ jobs:
             }
             const latestVersion = m[1];
 
-            const rows = tags
-              .map(t => `| \`${t}\` | ${t === latestVersion ? '`latest`' : ''} |`)
+            const list = tags
+              .map(t => `- \`${t}\`${t === latestVersion ? ' (`latest`)' : ''}`)
               .join('\n');
-            const table = ['| Tag | Alias |', '|-----|-------|', rows].join('\n');
 
             const readme = fs.readFileSync('README.md', 'utf8');
             const rendered = readme.replace(
               /<!-- TAGS:START -->[\s\S]*?<!-- TAGS:END -->/,
-              `<!-- TAGS:START -->\n${table}\n<!-- TAGS:END -->`,
+              `<!-- TAGS:START -->\n${list}\n<!-- TAGS:END -->`,
             );
             fs.writeFileSync('README.dockerhub.md', rendered);
 
