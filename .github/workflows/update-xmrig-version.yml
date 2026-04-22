@@ -12,46 +12,63 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Get latest xmrig version
-        id: get_version
-        run: |
-          set -eo pipefail
-          latest=$(curl -s https://api.github.com/repos/xmrig/xmrig/releases/latest | jq -r .tag_name)
-          echo "latest=$latest" >> $GITHUB_OUTPUT
-          echo "XMRig latest=$latest" >> $GITHUB_STEP_SUMMARY
+      - name: Check and update xmrig version
+        id: version
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
 
-      - name: Get current version from Dockerfile
-        id: get_current
-        run: |
-          set -eo pipefail
-          current=$(grep -oP 'ARG XMRIG_VERSION=\K[^\s]+' Dockerfile)
-          echo "current=$current" >> $GITHUB_OUTPUT
-          echo "XMRig current=$current" >> $GITHUB_STEP_SUMMARY
+            const { data } = await github.rest.repos.getLatestRelease({
+              owner: 'xmrig',
+              repo: 'xmrig',
+            });
+            const latest = data.tag_name;
+            if (!latest) {
+              core.setFailed('tag_name missing in latest release response');
+              return;
+            }
 
-      - name: Update Dockerfile if new version
-        id: update
-        run: |
-          set -eo pipefail
-          latest="${{ steps.get_version.outputs.latest }}"
-          current="${{ steps.get_current.outputs.current }}"
-          if [ "$latest" != "$current" ]; then
-            sed -i "s/ARG XMRIG_VERSION=$current/ARG XMRIG_VERSION=$latest/" Dockerfile
-            echo "updated=true" >> $GITHUB_OUTPUT
-            echo "Update version" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "updated=false" >> $GITHUB_OUTPUT
-          fi
+            const dockerfilePath = 'Dockerfile';
+            const dockerfile = fs.readFileSync(dockerfilePath, 'utf8');
+            const match = dockerfile.match(/^ARG XMRIG_VERSION=(\S+)/m);
+            if (!match) {
+              core.setFailed('ARG XMRIG_VERSION not found in Dockerfile');
+              return;
+            }
+            const current = match[1];
+
+            core.setOutput('latest', latest);
+            core.setOutput('current', current);
+
+            const summary = core.summary
+              .addRaw(`XMRig latest=${latest}\n`)
+              .addRaw(`XMRig current=${current}\n`);
+
+            if (latest === current) {
+              core.setOutput('updated', 'false');
+              await summary.write();
+              return;
+            }
+
+            const updated = dockerfile.replace(
+              /^ARG XMRIG_VERSION=\S+/m,
+              `ARG XMRIG_VERSION=${latest}`,
+            );
+            fs.writeFileSync(dockerfilePath, updated);
+            core.setOutput('updated', 'true');
+            await summary.addRaw('Update version\n').write();
 
       - name: Create Pull Request
-        if: steps.update.outputs.updated == 'true'
+        if: steps.version.outputs.updated == 'true'
         id: cpr
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.PAT_GITHUB }}
-          commit-message: "chore: update XMRIG_VERSION to ${{ steps.get_version.outputs.latest }}"
-          title: "Update XMRIG_VERSION to ${{ steps.get_version.outputs.latest }}"
-          body: "Automated update of XMRIG_VERSION to ${{ steps.get_version.outputs.latest }}."
-          branch: update/xmrig-version-${{ steps.get_version.outputs.latest }}
+          commit-message: "chore: update XMRIG_VERSION to ${{ steps.version.outputs.latest }}"
+          title: "Update XMRIG_VERSION to ${{ steps.version.outputs.latest }}"
+          body: "Automated update of XMRIG_VERSION to ${{ steps.version.outputs.latest }}."
+          branch: update/xmrig-version-${{ steps.version.outputs.latest }}
           assignees: ${{ github.repository_owner }}
           delete-branch: true
           labels: automerge,github-actions
