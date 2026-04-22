@@ -89,3 +89,49 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Render Docker Hub README
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            const { execSync } = require('child_process');
+
+            const tags = execSync('git tag --sort=-creatordate', { encoding: 'utf8' })
+              .split('\n')
+              .filter(t => /^v\d+\.\d+\.\d+/.test(t))
+              .slice(0, 10);
+            if (tags.length === 0) {
+              core.setFailed('no version tags found');
+              return;
+            }
+
+            const dockerfile = fs.readFileSync('Dockerfile', 'utf8');
+            const m = dockerfile.match(/^ARG XMRIG_VERSION=(\S+)/m);
+            if (!m) {
+              core.setFailed('ARG XMRIG_VERSION not found in Dockerfile');
+              return;
+            }
+            const latestVersion = m[1];
+
+            const rows = tags
+              .map(t => `| \`${t}\` | ${t === latestVersion ? '`latest`' : ''} |`)
+              .join('\n');
+            const table = ['| Tag | Alias |', '|-----|-------|', rows].join('\n');
+
+            const readme = fs.readFileSync('README.md', 'utf8');
+            const rendered = readme.replace(
+              /<!-- TAGS:START -->[\s\S]*?<!-- TAGS:END -->/,
+              `<!-- TAGS:START -->\n${table}\n<!-- TAGS:END -->`,
+            );
+            fs.writeFileSync('README.dockerhub.md', rendered);
+
+      - name: Update Docker Hub description
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: hsww/xmrig-centos7
+          readme-filepath: ./README.dockerhub.md
